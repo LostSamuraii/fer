@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Emotion Detection</title>
+</head>
+<body>
+    <h1>Facial Emotion Detection</h1>
+
+    <h2>Upload an Image</h2>
+    <input type="file" id="imageUpload" accept="image/*">
+    <button id="uploadButton">Upload</button>
+    <h3 id="result"></h3>
+
+    <h2>Real-Time Detection (Webcam)</h2>
+    <video id="webcam" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <button id="captureButton">Capture Frame</button>
+    <h3 id="webcamResult"></h3>
+
+    <script>
+        const backendURL = "http://localhost:5000/predict";
+
+        // Image Upload Functionality
+        document.getElementById('uploadButton').onclick = async () => {
+            const inputFile = document.getElementById('imageUpload').files[0];
+            if (!inputFile) return alert("Please select an image file!");
+
+            const formData = new FormData();
+            formData.append('image', inputFile);
+
+            try {
+                const response = await fetch(backendURL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error uploading image');
+                }
+
+                const result = await response.json();
+                document.getElementById('result').innerText = `Predicted Emotion: ${result.emotion}, Confidence: ${result.confidence.toFixed(2)}%`;
+            } catch (error) {
+                alert(error.message);
+            }
+        };
+
+        // Webcam Setup
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        // Access webcam and display video
+        navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+            video.srcObject = stream;
+        }).catch((error) => {
+            alert("Error accessing webcam: " + error.message);
+        });
+
+        document.getElementById('captureButton').onclick = async () => {
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas to blob for uploading
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('image', blob);
+
+                try {
+                    const response = await fetch(backendURL, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Error capturing frame');
+                    }
+
+                    const result = await response.json();
+                    document.getElementById('webcamResult').innerText = `Predicted Emotion: ${result.emotion}, Confidence: ${result.confidence.toFixed(2)}%`;
+                } catch (error) {
+                    alert(error.message);
+                }
+            }, 'image/png');
+        };
+    </script>
+</body>
+</html>
